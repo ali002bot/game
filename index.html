@@ -2,275 +2,333 @@
 <head>
 <meta charset="UTF-8">
 <title>IXL | Learn</title>
-<link rel="icon" href="https://www.ixl.com/favicon.ico"><style>
-body{margin:0;font-family:Arial;background:#0f172a;color:white;overflow:hidden}
+<link rel="icon" href="https://www.ixl.com/favicon.ico">
+<style>
+body{margin:0;background:#0f172a;color:white;text-align:center}
+canvas{display:block;margin:auto;background:#111}
+</style>
+</head>
+<body><canvas id="gameCanvas" width="800" height="500"></canvas>
 
 
-#dashboard{text-align:center;padding:20px}
-.card{
- background:#1e293b;
- padding:15px;
- margin:10px;
- border-radius:10px;
- cursor:pointer;
-}
+<script>
+const canvas=document.getElementById("gameCanvas");
+const ctx=canvas.getContext("2d");
 
 
-#gameCanvas{
- display:none;
- background:black;
- margin:auto;
-}
+// ===== MODES =====
+let basketballMode=false;
 
 
-#hud{
- position:absolute;
- top:10px;
- left:10px;
- font-size:14px;
-}
+// ===== SHOOTER GAME =====
+let p1={x:100,y:200,w:30,h:30,health:100,score:0};
+let p2={x:650,y:200,w:30,h:30,health:100,score:0};
 
 
-.bar{
- height:10px;
- background:#333;
- border-radius:5px;
- margin:5px 0;
-}
-.fill{
- height:100%;
- background:lime;
- border-radius:5px;
-}
+let bullets=[];
+let keys={};
+let p1Cooldown=0,p2Cooldown=0;
 
 
-#fakeScreen{
- display:none;
- background:#f5f7fa;
- height:100vh;
- color:black;
-}
-</style></head>
-<body><div id="dashboard">
-<h1>IXL Dashboard</h1>
-<div class="card">Math Grade: 92%</div>
-<div class="card">Science Assignment: Complete</div>
-<div class="card">History Notes Updated</div>
-</div><div id="fakeScreen">
-<div style="background:#4CAF50;height:5px;"></div>
-<div style="background:white;padding:20px;border-radius:10px;max-width:800px;margin:auto;margin-top:40px;">
-<h3 style="color:#4CAF50;">GG.3 Line plots</h3>
-<p>Use the graph to answer.</p>
-<input placeholder="Answer..." style="padding:10px;">
-</div>
-</div><canvas id="gameCanvas" width="800" height="500"></canvas>
+const walls=[
+ {x:300,y:100,w:20,h:300},
+ {x:500,y:0,w:20,h:200},
+ {x:500,y:300,w:20,h:200}
+];
 
 
-<div id="hud">
-<div>❤️ Health</div>
-<div class="bar"><div id="healthBar" class="fill"></div></div><div>🔫 Ammo</div>
-<div class="bar"><div id="ammoBar" class="fill"></div></div><div id="scoreText">🏆 0</div>
-</div><script>
-const canvas = document.getElementById("gameCanvas");
-const ctx = canvas.getContext("2d");
+// ===== CHEATS =====
+let rapidFire=false;
+let infiniteHealth=false;
 
 
-const dashboard = document.getElementById("dashboard");
-const fakeScreen = document.getElementById("fakeScreen");
+// ===== BASKET RANDOM =====
+let ball={x:400,y:200,vx:0,vy:0};
+let brP1={x:150,y:300,vx:0,vy:0};
+let brP2={x:650,y:300,vx:0,vy:0};
+let gravity=0.5;
+let bounce=-0.7;
+let courtColor="#222";
 
 
-let gameActive = false;
-let fakeMode = false;
+// ===== INPUT =====
+window.addEventListener("keydown",e=>{
+ keys[e.key]=true;
 
 
-let player = {x:100,y:200,w:30,h:30,health:100,ammo:10,maxAmmo:10};
-let bullets = [];
-let enemies = [];
-let keys = {};
-let score = 0;
-let damageCooldown = 0;
-
-
-// COLLISION
-function isColliding(a,b){
- return (
-  a.x < b.x + b.w &&
-  a.x + a.w > b.x &&
-  a.y < b.y + b.h &&
-  a.y + a.h > b.y
- );
-}
-
-
-// TOGGLE FAKE
-function toggleFake(){
- fakeMode = !fakeMode;
-
-
- if(fakeMode){
-  dashboard.style.display = "none";
-  canvas.style.display = "none";
-  fakeScreen.style.display = "block";
- } else {
-  dashboard.style.display = "block";
-  fakeScreen.style.display = "none";
- }
-}
-
-
-// CONTROLS
-window.addEventListener("keydown", e=>{
- keys[e.key] = true;
-
-
- if(e.shiftKey && e.key.toLowerCase()==="g"){
-  gameActive = true;
-  dashboard.style.display = "none";
-  canvas.style.display = "block";
+ // toggle basketball
+ if(e.altKey && e.key.toLowerCase()==="o"){
+  basketballMode=true;
+  resetBasket();
  }
 
 
- if(e.key === "Escape"){
-  gameActive = false;
-  dashboard.style.display = "block";
-  canvas.style.display = "none";
+ // exit mode
+ if(e.key==="Escape"){
+  basketballMode=false;
  }
 
 
- if(e.altKey && e.key.toLowerCase()==="a"){
-  toggleFake();
+ // basketball controls
+ if(basketballMode){
+  if(e.key==="w"){
+   brP1.vy=-10;
+   brP1.vx+=(Math.random()-0.5)*12;
+  }
+  if(e.key==="ArrowUp"){
+   brP2.vy=-10;
+   brP2.vx+=(Math.random()-0.5)*12;
+  }
  }
 
 
- if(e.key === "r"){
-  player.ammo = player.maxAmmo;
+ // cheat toggle
+ if(e.key==="c"){
+  rapidFire=!rapidFire;
  }
 });
 
 
-window.addEventListener("keyup", e=>{
- keys[e.key] = false;
-});
+window.addEventListener("keyup",e=>keys[e.key]=false);
 
 
-// SHOOT
-window.addEventListener("click", ()=>{
- if(gameActive && player.ammo > 0){
-  bullets.push({x:player.x+30,y:player.y,w:10,h:5});
-  player.ammo--;
+// ===== FUNCTIONS =====
+function collide(a,b){
+ return a.x<b.x+b.w && a.x+a.w>b.x && a.y<b.y+b.h && a.y+a.h>b.y;
+}
+
+
+function shoot(x,y,dir){
+ for(let i=-1;i<=1;i++){
+  bullets.push({x:x+15,y:y+15+i*5,dir});
  }
-});
+}
 
 
-// ENEMY SPAWN
-setInterval(()=>{
- enemies.push({
-  x:800,
-  y:Math.random()*470,
-  w:30,
-  h:30,
-  speed:2
- });
-},1200);
+function resetBasket(){
+ ball={x:400,y:200,vx:(Math.random()-0.5)*6,vy:0};
+ brP1={x:150,y:300,vx:0,vy:0};
+ brP2={x:650,y:300,vx:0,vy:0};
 
 
-// UPDATE
+ const colors=["#222","#1a1a2e","#003049","#2b2d42"];
+ courtColor=colors[Math.floor(Math.random()*colors.length)];
+}
+
+
+// ===== UPDATE =====
 function update(){
- if(!gameActive) return;
 
 
- if(keys["w"]) player.y -= 4;
- if(keys["s"]) player.y += 4;
- if(keys["a"]) player.x -= 4;
- if(keys["d"]) player.x += 4;
+ // ===== BASKET MODE =====
+ if(basketballMode){
 
 
- player.x = Math.max(0, Math.min(770, player.x));
- player.y = Math.max(0, Math.min(470, player.y));
+  [brP1,brP2,ball].forEach(o=>{
+   o.vy+=gravity;
+   o.x+=o.vx;
+   o.y+=o.vy;
+  });
 
 
- bullets.forEach(b=>b.x += 8);
+  brP1.vx*=0.95;
+  brP2.vx*=0.95;
 
 
- enemies.forEach(e=>{
-  let dx = player.x - e.x;
-  let dy = player.y - e.y;
-  let dist = Math.sqrt(dx*dx + dy*dy) || 1;
+  [brP1,brP2].forEach(p=>{
+   if(p.y>350){
+    p.y=350;
+    p.vy*=bounce;
+   }
+  });
 
 
-  e.x += (dx/dist)*e.speed;
-  e.y += (dy/dist)*e.speed;
- });
+  if(ball.y>400){
+   ball.y=400;
+   ball.vy*=bounce;
+  }
 
 
- // BULLET HIT
- bullets.forEach((b,bi)=>{
-  enemies.forEach((e,ei)=>{
-   if(isColliding(b,e)){
-    enemies.splice(ei,1);
-    bullets.splice(bi,1);
-    score += 10;
+  [brP1,brP2].forEach(p=>{
+   let dx=ball.x-p.x;
+   let dy=ball.y-p.y;
+   let d=Math.sqrt(dx*dx+dy*dy);
+   if(d<30){
+    ball.vx=dx*0.4;
+    ball.vy=-6;
+   }
+  });
+
+
+  if(ball.x>770 && ball.y>200 && ball.y<300){
+   alert("P1 SCORED!");
+   resetBasket();
+  }
+
+
+  if(ball.x<30 && ball.y>200 && ball.y<300){
+   alert("P2 SCORED!");
+   resetBasket();
+  }
+
+
+  return;
+ }
+
+
+ // ===== SHOOTER =====
+ if(keys["w"]) p1.y-=4;
+ if(keys["s"]) p1.y+=4;
+ if(keys["a"]) p1.x-=4;
+ if(keys["d"]) p1.x+=4;
+
+
+ if(keys["ArrowUp"]) p2.y-=4;
+ if(keys["ArrowDown"]) p2.y+=4;
+ if(keys["ArrowLeft"]) p2.x-=4;
+ if(keys["ArrowRight"]) p2.x+=4;
+
+
+ p1.x=Math.max(0,Math.min(770,p1.x));
+ p1.y=Math.max(0,Math.min(470,p1.y));
+ p2.x=Math.max(0,Math.min(770,p2.x));
+ p2.y=Math.max(0,Math.min(470,p2.y));
+
+
+ if(keys["f"] && (p1Cooldown<=0 || rapidFire)){
+  shoot(p1.x,p1.y,1);
+  p1Cooldown=rapidFire?5:25;
+ }
+
+
+ if(keys["/"] && (p2Cooldown<=0 || rapidFire)){
+  shoot(p2.x,p2.y,-1);
+  p2Cooldown=rapidFire?5:25;
+ }
+
+
+ if(p1Cooldown>0)p1Cooldown--;
+ if(p2Cooldown>0)p2Cooldown--;
+
+
+ bullets.forEach(b=>b.x+=b.dir*6);
+
+
+ bullets.forEach((b,i)=>{
+  if(collide({x:b.x,y:b.y,w:5,h:5},p1) && !infiniteHealth){
+   p1.health-=10;
+   bullets.splice(i,1);
+  }
+  if(collide({x:b.x,y:b.y,w:5,h:5},p2)){
+   p2.health-=10;
+   bullets.splice(i,1);
+  }
+
+
+  walls.forEach(w=>{
+   if(collide({x:b.x,y:b.y,w:5,h:5},w)){
+    bullets.splice(i,1);
    }
   });
  });
 
 
- // DAMAGE
- if(damageCooldown > 0) damageCooldown--;
-
-
- enemies.forEach(e=>{
-  if(isColliding(player,e) && damageCooldown === 0){
-   player.health -= 5;
-   damageCooldown = 15;
-  }
- });
-
-
- // UI
- document.getElementById("healthBar").style.width = player.health + "%";
- document.getElementById("ammoBar").style.width = (player.ammo/player.maxAmmo*100) + "%";
- document.getElementById("scoreText").innerText = "🏆 " + score;
-
-
- if(player.health <= 0){
-  alert("Game Over! Score: " + score);
-  location.reload();
- }
+ if(p1.health<=0){p2.score++;reset();}
+ if(p2.health<=0){p1.score++;reset();}
 }
 
 
-// DRAW
+function reset(){
+ p1.health=100;
+ p2.health=100;
+ bullets=[];
+}
+
+
+// ===== DRAW =====
 function draw(){
- if(!gameActive) return;
 
 
+ // ===== BASKET MODE =====
+ if(basketballMode){
+  ctx.fillStyle=courtColor;
+  ctx.fillRect(0,0,800,500);
+
+
+  ctx.fillStyle="white";
+  ctx.fillRect(780,200,10,100);
+  ctx.fillRect(10,200,10,100);
+
+
+  drawPlayer(brP1,"cyan");
+  drawPlayer(brP2,"red");
+
+
+  ctx.fillStyle="orange";
+  ctx.beginPath();
+  ctx.arc(ball.x,ball.y,10,0,Math.PI*2);
+  ctx.fill();
+
+
+  return;
+ }
+
+
+ // ===== SHOOTER =====
  ctx.clearRect(0,0,800,500);
 
 
- // PLAYER
- ctx.fillStyle = "#00e5ff";
- ctx.beginPath();
- ctx.arc(player.x+15, player.y+15, 15, 0, Math.PI*2);
- ctx.fill();
+ ctx.fillStyle="#444";
+ walls.forEach(w=>ctx.fillRect(w.x,w.y,w.w,w.h));
 
 
- // BULLETS
- ctx.fillStyle = "yellow";
- bullets.forEach(b=>ctx.fillRect(b.x,b.y,10,5));
+ ctx.fillStyle="cyan";
+ ctx.fillRect(p1.x,p1.y,30,30);
 
 
- // ENEMIES
- ctx.fillStyle = "#ff3b3b";
- enemies.forEach(e=>{
-  ctx.beginPath();
-  ctx.arc(e.x+15, e.y+15, 15, 0, Math.PI*2);
-  ctx.fill();
- });
+ ctx.fillStyle="red";
+ ctx.fillRect(p2.x,p2.y,30,30);
+
+
+ ctx.fillStyle="yellow";
+ bullets.forEach(b=>ctx.fillRect(b.x,b.y,5,5));
+
+
+ ctx.fillStyle="white";
+ ctx.fillText("P1:"+p1.score,20,20);
+ ctx.fillText("P2:"+p2.score,720,20);
 }
 
 
-// LOOP
+// ===== RAGDOLL =====
+function drawPlayer(p,color){
+ ctx.fillStyle=color;
+ ctx.fillRect(p.x,p.y,10,30);
+
+
+ ctx.beginPath();
+ ctx.arc(p.x+5,p.y-5,7,0,Math.PI*2);
+ ctx.fill();
+
+
+ ctx.strokeStyle=color;
+ ctx.lineWidth=3;
+
+
+ ctx.beginPath();
+ ctx.moveTo(p.x+5,p.y+30);
+ ctx.lineTo(p.x+Math.sin(p.vx)*10,p.y+45);
+ ctx.stroke();
+
+
+ ctx.beginPath();
+ ctx.moveTo(p.x+5,p.y+30);
+ ctx.lineTo(p.x-Math.sin(p.vx)*10,p.y+45);
+ ctx.stroke();
+}
+
+
+// ===== LOOP =====
 function loop(){
  update();
  draw();
