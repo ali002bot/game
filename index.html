@@ -1,9 +1,10 @@
-m<!DOCTYPE html><html lang="en">
+﻿<!DOCTYPE html><html lang="en">
 <head>
 <meta charset="UTF-8">
 <title>IXL | Learn</title>
 <link rel="icon" href="https://www.ixl.com/favicon.ico"><style>
 body{margin:0;font-family:Arial;background:#0f172a;color:white;overflow:hidden}
+
 
 #dashboard{text-align:center;padding:20px}
 .card{
@@ -14,12 +15,16 @@ body{margin:0;font-family:Arial;background:#0f172a;color:white;overflow:hidden}
  cursor:pointer;
 }
 
+
 #gameCanvas{display:none;background:black;margin:auto}
+
 
 #hud{position:absolute;top:10px;left:10px}
 
+
 .bar{height:10px;background:#333;border-radius:5px;margin:5px 0}
 .fill{height:100%;background:lime;border-radius:5px}
+
 
 #fakeScreen{
  display:none;
@@ -42,6 +47,7 @@ body{margin:0;font-family:Arial;background:#0f172a;color:white;overflow:hidden}
 </div>
 </div><canvas id="gameCanvas" width="800" height="500"></canvas>
 
+
 <div id="hud">
 <div>❤️ Health</div>
 <div class="bar"><div id="healthBar" class="fill"></div></div><div>🔫 Ammo</div>
@@ -50,19 +56,24 @@ body{margin:0;font-family:Arial;background:#0f172a;color:white;overflow:hidden}
 const canvas=document.getElementById('gameCanvas');
 const ctx=canvas.getContext('2d');
 
+
 const dashboard=document.getElementById('dashboard');
 const fakeScreen=document.getElementById('fakeScreen');
 
+
 let gameActive=false,fakeMode=false;
+
 
 let player={x:100,y:200,w:30,h:30,health:100,ammo:10,maxAmmo:10};
 let bullets=[],enemies=[],keys={},score=0;
 let damageCooldown=0;
 
+
 // COLLISION FIX
 function isColliding(a,b){
  return a.x<b.x+b.w && a.x+a.w>b.x && a.y<b.y+b.h && a.y+a.h>b.y;
 }
+
 
 // TOGGLE IXL
 function toggleFake(){
@@ -72,9 +83,11 @@ function toggleFake(){
  fakeScreen.style.display=fakeMode?'block':'none';
 }
 
+
 // CONTROLS
 window.addEventListener('keydown',e=>{
  keys[e.key]=true;
+
 
  if(e.shiftKey && e.key.toLowerCase()==='g'){
   gameActive=true;
@@ -82,22 +95,27 @@ window.addEventListener('keydown',e=>{
   canvas.style.display='block';
  }
 
+
  if(e.key==='Escape'){
   gameActive=false;
   dashboard.style.display='block';
   canvas.style.display='none';
  }
 
+
  if(e.altKey && e.key.toLowerCase()==='a'){
   toggleFake();
  }
+
 
  if(e.key==='r'){
   player.ammo=player.maxAmmo;
  }
 });
 
+
 window.addEventListener('keyup',e=>keys[e.key]=false);
+
 
 // SHOOT
 window.addEventListener('click',()=>{
@@ -107,24 +125,30 @@ window.addEventListener('click',()=>{
  }
 });
 
+
 // ENEMIES
 setInterval(()=>{
  enemies.push({x:800,y:Math.random()*500,w:30,h:30,speed:2});
 },1200);
 
+
 // UPDATE
 function update(){
  if(!gameActive) return;
+
 
  if(keys['w']) player.y-=4;
  if(keys['s']) player.y+=4;
  if(keys['a']) player.x-=4;
  if(keys['d']) player.x+=4;
 
+
  player.x=Math.max(0,Math.min(770,player.x));
  player.y=Math.max(0,Math.min(470,player.y));
 
+
  bullets.forEach(b=>b.x+=8);
+
 
  enemies.forEach(e=>{
   let dx=player.x-e.x;
@@ -133,6 +157,7 @@ function update(){
   e.x+=(dx/d)*e.speed;
   e.y+=(dy/d)*e.speed;
  });
+
 
  bullets.forEach((b,bi)=>{
   enemies.forEach((e,ei)=>{
@@ -144,7 +169,9 @@ function update(){
   });
  });
 
+
  if(damageCooldown>0) damageCooldown--;
+
 
  enemies.forEach(e=>{
   if(isColliding(player,e) && damageCooldown===0){
@@ -153,10 +180,12 @@ function update(){
   }
  });
 
+
  // UI
  document.getElementById('healthBar').style.width=player.health+'%';
  document.getElementById('ammoBar').style.width=(player.ammo/player.maxAmmo*100)+'%';
  document.getElementById('scoreText').innerText='🏆 '+score;
+
 
  if(player.health<=0){
   alert("Game Over! Score: "+score);
@@ -164,11 +193,14 @@ function update(){
  }
 }
 
+
 // DRAW (UPGRADED VISUALS)
 function draw(){
  if(!gameActive) return;
 
+
  ctx.clearRect(0,0,800,500);
+
 
  // player glow
  ctx.fillStyle="#00e5ff";
@@ -176,9 +208,11 @@ function draw(){
  ctx.arc(player.x+15,player.y+15,15,0,Math.PI*2);
  ctx.fill();
 
+
  // bullets
  ctx.fillStyle="yellow";
  bullets.forEach(b=>ctx.fillRect(b.x,b.y,10,5));
+
 
  // enemies glow
  ctx.fillStyle="#ff3b3b";
@@ -188,6 +222,7 @@ function draw(){
   ctx.fill();
  });
 }
+
 
 // LOOP
 function loop(){
