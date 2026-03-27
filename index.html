@@ -1,330 +1,195 @@
-﻿<!DOCTYPE html><html>
+﻿<!DOCTYPE html>
+<html>
 <head>
-<meta charset="UTF-8">
-<title>Study Portal</title>
-<style>
-body{margin:0;font-family:Arial}
-canvas{display:block;margin:auto;background:#111}
-</style>
+    <title>Random Hoops: Dual Owner</title>
+    <style>
+        body { margin: 0; background: #222; overflow: hidden; font-family: 'Arial Black', sans-serif; }
+        canvas { display: block; background: #70a1ff; margin: auto; }
+        #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; 
+                   flex-direction: column; justify-content: center; align-items: center; 
+                   background: rgba(0,0,0,0.8); color: white; z-index: 10; }
+        button { padding: 15px 40px; font-size: 24px; margin: 10px; cursor: pointer; 
+                 background: #ff4757; color: white; border: none; border-radius: 10px; font-family: inherit; }
+        #score { position: absolute; width: 100%; display: flex; justify-content: space-around; 
+                 top: 20px; color: white; font-size: 40px; text-shadow: 3px 3px 0px #000; pointer-events: none; }
+    </style>
 </head>
-<body><canvas id="game" width="800" height="500"></canvas>
+<body>
+    <div id="gameContent">
+        <div id="score"><div id="p1Text">P1: 0</div><div id="p2Text">P2: 0</div></div>
+        <div id="overlay">
+            <h1>RANDOM HOOPS</h1>
+            <button onclick="startGame(1)">1 PLAYER</button>
+            <button onclick="startGame(2)">2 PLAYER</button>
+        </div>
+        <canvas id="game"></canvas>
+    </div>
 
 
 <script>
-const c=document.getElementById("game");
-const ctx=c.getContext("2d");
+// --- REALISTIC SOUND SYSTEM ---
+const sounds = {
+    bounce: new Audio('https://assets.mixkit.co/active_storage/sfx/2070/2070-preview.mp3'),
+    swish: new Audio('https://assets.mixkit.co/active_storage/sfx/2071/2071-preview.mp3'),
+    rim: new Audio('https://assets.mixkit.co/active_storage/sfx/2072/2072-preview.mp3'),
+    squeak: new Audio('https://assets.mixkit.co/active_storage/sfx/2069/2069-preview.mp3')
+};
 
 
-let dashboard=false;
-let basketball=true;
-
-
-// ===== OWNER =====
-let owner=null, seq=[];
-let god=false, chaos=false, magnet=false;
-
-
-// ===== SCORE =====
-let score1=0, score2=0;
-
-
-// ===== AI =====
-let aiLevel=1;
-
-
-// ===== PLAYERS =====
-function make(x){
- return {
-  x:x,y:300,vx:0,vy:0,
-  angle:0,spin:0,
-  arm:Math.random()*6,
-  leg:Math.random()*6,
-  lean:0
- };
+function play(soundName, volume = 0.4) {
+    let s = sounds[soundName].cloneNode();
+    s.volume = volume;
+    s.play().catch(() => {});
 }
-let p1=make(150), p2=make(650);
-let ball={x:400,y:200,vx:0,vy:0,holder:null};
 
 
-// ===== SHOOTER =====
-let bullets=[];
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+canvas.width = 1000; canvas.height = 550;
 
 
-// INPUT (UNCHANGED)
-document.addEventListener("keydown",e=>{
- seq.push(e.key);
+// Global Cheat States
+let cheats = { 
+    giantBall: false, 
+    moonGrav: false, 
+    p1Long: false, p2Long: false, 
+    p1Speed: false, p2Speed: false 
+};
 
 
- if(e.key==="Tab"){e.preventDefault();dashboard=!dashboard;}
- if(e.key==="p") basketball=!basketball;
+let score1 = 0, score2 = 0, gameActive = false, mode = 1;
 
 
- if(!owner){
-  if(JSON.stringify(seq.slice(-5))===JSON.stringify(["w","w","s","d","f"])) owner="p1";
-  if(JSON.stringify(seq.slice(-4))===JSON.stringify(["ArrowUp","ArrowUp","ArrowDown","ArrowRight"])) owner="p2";
- }
+class Ball {
+    constructor() { this.reset(); }
+    reset() {
+        this.x = canvas.width / 2; this.y = 100;
+        this.vx = (Math.random() - 0.5) * 12; this.vy = 0;
+        this.r = cheats.giantBall ? 45 : 15;
+    }
+    update() {
+        let grav = cheats.moonGrav ? 0.15 : 0.45;
+        this.vy += grav; this.x += this.vx; this.y += this.vy;
+        if (this.y + this.r > canvas.height - 50) { 
+            this.y = canvas.height - 50 - this.r; 
+            if (Math.abs(this.vy) > 2) play('bounce', 0.3);
+            this.vy *= -0.7; 
+        }
+        if (this.x < 0 || this.x > canvas.width) { this.vx *= -0.8; play('rim', 0.2); }
+        if (this.y < 220 && this.vy > 0) {
+            if (this.x < 60) { score2++; play('swish', 0.8); this.reset(); }
+            if (this.x > canvas.width - 60) { score1++; play('swish', 0.8); this.reset(); }
+        }
+    }
+    draw() {
+        ctx.fillStyle = "#ff7f50"; ctx.beginPath(); ctx.arc(this.x, this.y, this.r, 0, Math.PI*2); ctx.fill();
+        ctx.strokeStyle = "black"; ctx.lineWidth = 3; ctx.stroke();
+    }
+}
 
 
- if(owner){
-  let s=seq.join("");
-  if(s.includes("wsw")) god=!god;
-  if(s.includes("adad")) chaos=!chaos;
-  if(s.includes("sdsd")) magnet=!magnet;
-  if(s.includes("wdwd")){
-   if(owner==="p1") score1++;
-   if(owner==="p2") score2++;
-  }
- }
+class Ragdoll {
+    constructor(x, color, side, isCPU = false) {
+        this.x = x; this.y = 400; this.vx = 0; this.vy = 0;
+        this.angle = 0; this.color = color; this.side = side;
+        this.isCPU = isCPU; this.armA = 0;
+    }
+    jump() {
+        if (this.y > canvas.height - 140) {
+            play('squeak', 0.15);
+            let hasSpeed = (this.side === -1) ? cheats.p1Speed : cheats.p2Speed;
+            let pwr = hasSpeed ? -25 : -15;
+            this.vy = pwr - Math.random() * 5;
+            this.vx = (this.side * -1) * (Math.random() * 12);
+            this.angle = (Math.random() - 0.5) * 6;
+        }
+    }
+    update() {
+        if (this.isCPU && Math.random() < 0.02) {
+            if (ball.x > 500 || Math.abs(this.x - ball.x) < 120) this.jump();
+        }
+        let grav = cheats.moonGrav ? 0.15 : 0.45;
+        this.vy += grav; this.x += this.vx; this.y += this.vy;
+        this.angle *= 0.94; this.armA = Math.sin(Date.now() * 0.01) * 2;
+        if (this.y > canvas.height - 130) { this.y = canvas.height - 130; this.vy = 0; this.vx *= 0.8; }
+    }
+    draw() {
+        ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.angle);
+        ctx.fillStyle = "#ffe0bd"; ctx.fillRect(-15, -60, 30, 30);
+        ctx.fillStyle = this.color; ctx.fillRect(-20, -30, 40, 60);
+        ctx.save(); ctx.translate(this.side*10, -10); ctx.rotate(this.armA);
+        ctx.fillStyle = "#ffe0bd"; 
+        let hasLong = (this.side === -1) ? cheats.p1Long : cheats.p2Long;
+        let armL = hasLong ? 115 : 50;
+        ctx.fillRect(0,0,armL,12); ctx.restore();
+        ctx.fillStyle = "#333"; ctx.fillRect(-15, 30, 10, 30); ctx.fillRect(5, 30, 10, 30); 
+        ctx.restore();
+    }
+}
 
 
- if(basketball){
-  if(e.key==="w") jump(p1);
-  if(e.key==="ArrowUp") jump(p2);
- }
+let ball, p1, p2;
 
 
- if(!basketball){
-  if(e.key==="f") bullets.push({x:p1.x,y:p1.y,dx:6});
-  if(e.key==="/") bullets.push({x:p2.x,y:p2.y,dx:-6});
- }
+function startGame(m) {
+    mode = m; score1 = 0; score2 = 0;
+    ball = new Ball();
+    p1 = new Ragdoll(200, "#1e90ff", -1, false);
+    p2 = new Ragdoll(800, "#e63946", 1, (mode === 1));
+    document.getElementById('overlay').style.display = 'none';
+    gameActive = true; loop();
+}
+
+
+function loop() {
+    if (!gameActive) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#2f3542"; ctx.fillRect(0, canvas.height - 40, canvas.width, 40); 
+    ctx.fillStyle = "white"; ctx.fillRect(0, 180, 10, 80); ctx.fillRect(canvas.width-10, 180, 10, 80); 
+    ctx.fillStyle = "red"; ctx.fillRect(0, 220, 50, 8); ctx.fillRect(canvas.width-50, 220, 50, 8); 
+
+
+    [p1, p2].forEach(p => {
+        p.update(); p.draw();
+        let dx = p.x - ball.x; let dy = (p.y-20) - ball.y;
+        let hasLong = (p.side === -1) ? cheats.p1Long : cheats.p2Long;
+        let reach = hasLong ? 90 : 60;
+        if (Math.sqrt(dx*dx + dy*dy) < reach) { 
+            play('rim', 0.1); 
+            ball.vx = (ball.x - p.x) * 0.8; ball.vy = -12; 
+        }
+    });
+
+
+    ball.update(); ball.draw();
+    document.getElementById('p1Text').innerText = "P1: " + score1;
+    document.getElementById('p2Text').innerText = (mode === 1 ? "CPU: " : "P2: ") + score2;
+    requestAnimationFrame(loop);
+}
+
+
+window.addEventListener('keydown', e => {
+    if (e.key.toLowerCase() === 'p') { window.location.href = "https://www.google.com"; return; }
+
+
+    // PLAYER 1 CHEATS
+    if (e.key === '1') { cheats.giantBall = !cheats.giantBall; ball.r = cheats.giantBall ? 45 : 15; }
+    if (e.key === '2') { cheats.moonGrav = !cheats.moonGrav; }
+    if (e.key === '3') { cheats.p1Long = !cheats.p1Long; }
+    if (e.key === '4') { cheats.p1Speed = !cheats.p1Speed; }
+
+
+    // PLAYER 2 CHEATS (Secret Owner Keys)
+    if (e.key === '7') { cheats.giantBall = !cheats.giantBall; ball.r = cheats.giantBall ? 45 : 15; }
+    if (e.key === '8') { cheats.moonGrav = !cheats.moonGrav; }
+    if (e.key === '9') { cheats.p2Long = !cheats.p2Long; }
+    if (e.key === '0') { cheats.p2Speed = !cheats.p2Speed; }
+
+
+    let k = e.key.toLowerCase();
+    if (k === 'w' || k === 's') p1.jump();
+    if (mode === 2 && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) p2.jump();
 });
-
-
-function jump(p){
- p.vy=(god&&owner==="p1")?-20:-11;
-
-
- if(ball.holder===p){
-  ball.holder=null;
-  ball.vx=p.vx+(Math.random()*6-3);
-  ball.vy=-10;
- }
-
-
- p.vx+=Math.random()*10-5;
- p.spin+=Math.random()*2-1;
- p.lean+=Math.random()*1-0.5;
-}
-
-
-// LOOP (UNCHANGED LOGIC)
-function loop(){
- requestAnimationFrame(loop);
- ctx.clearRect(0,0,800,500);
-
-
- if(dashboard){drawDashboard();return;}
-
-
- if(basketball){
-
-
-  [p1,p2].forEach(p=>{
-   p.vy+=0.6;
-   p.x+=p.vx;
-   p.y+=p.vy;
-   p.lean*=0.95;
-   p.angle+=p.spin+p.lean;
-   p.arm+=Math.random()*0.3-0.15;
-   p.leg+=Math.random()*0.3-0.15;
-  });
-
-
-  let speed=Math.min(0.25+aiLevel*0.05,0.6);
-  if(ball.x>p2.x) p2.vx+=speed; else p2.vx-=speed;
-
-
-  if(Math.abs(ball.x-p2.x)<60 && Math.random()<0.02+aiLevel*0.005){
-   p2.vy=-10;
-  }
-
-
-  if(ball.holder){
-   let p=ball.holder;
-   ball.x=p.x;
-   ball.y=p.y-20;
-  }else{
-   ball.vy+=0.6;
-   ball.x+=ball.vx;
-   ball.y+=ball.vy;
-  }
-
-
-  [p1,p2].forEach(p=>{
-   let dx=ball.x-p.x;
-   let dy=ball.y-p.y;
-   if(Math.sqrt(dx*dx+dy*dy)<35 && !ball.holder){
-    ball.holder=p;
-   }
-  });
-
-
-  [p1,p2].forEach(p=>{
-   if(p.y>350){p.y=350;p.vy*=-0.6;}
-  });
-
-
-  if(ball.y>400){ball.y=400;ball.vy*=-0.7;}
-  if(ball.x<0||ball.x>800) ball.vx*=-0.8;
-
-
-  if(chaos) ball.vx+=Math.random()*1-0.5;
-  if(magnet){
-   let p=owner==="p1"?p1:p2;
-   ball.holder=p;
-  }
-
-
-  [p1,p2].forEach(p=>{
-   let dx=ball.x-p.x;
-   let dy=ball.y-p.y;
-   if(Math.sqrt(dx*dx+dy*dy)<45){
-    ball.vx=dx*0.7+(Math.random()*4-2);
-    ball.vy=-8;
-   }
-  });
-
-
-  if(ball.x>780 && ball.y>200 && ball.y<300){score1++;aiLevel++;reset();}
-  if(ball.x<20 && ball.y>200 && ball.y<300){score2++;aiLevel++;reset();}
-
-
-  if(score1>=5||score2>=5){
-   alert((score1>=5?"P1":"P2")+" WINS!");
-   score1=0;score2=0;aiLevel=1;
-  }
-
-
-  drawCourt();
-  drawPlayer(p1,"cyan");
-  drawPlayer(p2,"red");
-
-
-  ctx.fillStyle="orange";
-  ctx.beginPath();
-  ctx.arc(ball.x,ball.y,10,0,Math.PI*2);
-  ctx.fill();
-
-
-  ctx.fillStyle="white";
-  ctx.fillText(score1,50,50);
-  ctx.fillText(score2,730,50);
-  ctx.fillText("AI:"+aiLevel,350,50);
-
-
-  return;
- }
-
-
- bullets.forEach(b=>b.x+=b.dx);
-
-
- ctx.fillStyle="#222";
- ctx.fillRect(0,0,800,500);
-
-
- ctx.fillStyle="cyan";
- ctx.fillRect(p1.x,p1.y,20,30);
- ctx.fillStyle="red";
- ctx.fillRect(p2.x,p2.y,20,30);
-
-
- ctx.fillStyle="yellow";
- bullets.forEach(b=>ctx.fillRect(b.x,b.y,5,5));
-}
-
-
-// RESET
-function reset(){
- ball.x=400;ball.y=200;ball.vx=0;ball.vy=0;ball.holder=null;
-}
-
-
-// COURT
-function drawCourt(){
- ctx.fillStyle="#222";
- ctx.fillRect(0,0,800,500);
- ctx.fillStyle="white";
- ctx.fillRect(780,200,10,100);
- ctx.fillRect(10,200,10,100);
-}
-
-
-// 🔥 NEW 90% STYLE PLAYER
-function drawPlayer(p,color){
- ctx.save();
- ctx.translate(p.x,p.y);
- ctx.rotate(p.angle);
-
-
- // BODY (short + thick)
- ctx.fillStyle=color;
- ctx.fillRect(-14,0,28,24);
-
-
- // HEAD (bigger)
- ctx.beginPath();
- ctx.arc(0,-14,16,0,Math.PI*2);
- ctx.fill();
-
-
- // EYES
- ctx.fillStyle="white";
- ctx.fillRect(-6,-18,4,4);
- ctx.fillRect(2,-18,4,4);
-
-
- ctx.strokeStyle=color;
- ctx.lineWidth=8;
-
-
- // ARMS (chunky + forward)
- ctx.beginPath();
- ctx.moveTo(0,8);
- ctx.lineTo(Math.cos(p.arm)*28+5, Math.sin(p.arm)*28);
- ctx.stroke();
-
-
- ctx.beginPath();
- ctx.moveTo(0,8);
- ctx.lineTo(-Math.cos(p.arm)*28-5, Math.sin(p.arm)*28);
- ctx.stroke();
-
-
- // LEGS (short + thick)
- ctx.lineWidth=10;
-
-
- ctx.beginPath();
- ctx.moveTo(-6,24);
- ctx.lineTo(Math.sin(p.leg)*15,45);
- ctx.stroke();
-
-
- ctx.beginPath();
- ctx.moveTo(6,24);
- ctx.lineTo(-Math.sin(p.leg)*15,45);
- ctx.stroke();
-
-
- ctx.restore();
-}
-
-
-// DASHBOARD
-function drawDashboard(){
- ctx.fillStyle="#f8fafc";
- ctx.fillRect(0,0,800,500);
- ctx.fillStyle="#2563eb";
- ctx.fillRect(0,0,800,60);
- ctx.fillStyle="white";
- ctx.fillText("Study Portal",20,35);
- ctx.fillStyle="#111";
- ctx.fillText("Assignments",300,150);
- ctx.fillText("Press TAB to return",300,400);
-}
-
-
-loop();
-</script></body>
+</script>
+</body>
 </html>
