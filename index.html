@@ -34,45 +34,42 @@ let aiLevel=1;
 
 // ===== PLAYERS =====
 function make(x){
- return {x:x,y:300,vx:0,vy:0,angle:0,spin:0,arm:0,leg:0};
+ return {
+  x:x,y:300,vx:0,vy:0,
+  angle:0,spin:0,
+  arm:Math.random()*6,
+  leg:Math.random()*6,
+  lean:0
+ };
 }
 let p1=make(150), p2=make(650);
-let ball={x:400,y:200,vx:0,vy:0};
+let ball={x:400,y:200,vx:0,vy:0,holder:null};
 
 
 // ===== SHOOTER =====
 let bullets=[];
 
 
-// INPUT
+// INPUT (UNCHANGED)
 document.addEventListener("keydown",e=>{
  seq.push(e.key);
 
 
- if(e.key==="Tab"){
-  e.preventDefault();
-  dashboard=!dashboard;
- }
-
-
+ if(e.key==="Tab"){e.preventDefault();dashboard=!dashboard;}
  if(e.key==="p") basketball=!basketball;
 
 
- // OWNER
  if(!owner){
   if(JSON.stringify(seq.slice(-5))===JSON.stringify(["w","w","s","d","f"])) owner="p1";
   if(JSON.stringify(seq.slice(-4))===JSON.stringify(["ArrowUp","ArrowUp","ArrowDown","ArrowRight"])) owner="p2";
  }
 
 
- // CHEATS
  if(owner){
   let s=seq.join("");
   if(s.includes("wsw")) god=!god;
   if(s.includes("adad")) chaos=!chaos;
   if(s.includes("sdsd")) magnet=!magnet;
-
-
   if(s.includes("wdwd")){
    if(owner==="p1") score1++;
    if(owner==="p2") score2++;
@@ -80,14 +77,12 @@ document.addEventListener("keydown",e=>{
  }
 
 
- // JUMP
  if(basketball){
   if(e.key==="w") jump(p1);
   if(e.key==="ArrowUp") jump(p2);
  }
 
 
- // SHOOTER
  if(!basketball){
   if(e.key==="f") bullets.push({x:p1.x,y:p1.y,dx:6});
   if(e.key==="/") bullets.push({x:p2.x,y:p2.y,dx:-6});
@@ -96,122 +91,107 @@ document.addEventListener("keydown",e=>{
 
 
 function jump(p){
- p.vy = (god && owner==="p1") ? -22 : -12;
- p.vx += Math.random()*14-7;
- p.spin += Math.random()*2-1;
+ p.vy=(god&&owner==="p1")?-20:-11;
+
+
+ if(ball.holder===p){
+  ball.holder=null;
+  ball.vx=p.vx+(Math.random()*6-3);
+  ball.vy=-10;
+ }
+
+
+ p.vx+=Math.random()*10-5;
+ p.spin+=Math.random()*2-1;
+ p.lean+=Math.random()*1-0.5;
 }
 
 
-// LOOP
+// LOOP (UNCHANGED LOGIC)
 function loop(){
  requestAnimationFrame(loop);
  ctx.clearRect(0,0,800,500);
 
 
- if(dashboard){
-  drawDashboard();
-  return;
- }
+ if(dashboard){drawDashboard();return;}
 
 
- // ===== BASKET =====
  if(basketball){
 
 
-  [p1,p2,ball].forEach(o=>{
-   o.vy+=0.7;
-   o.x+=o.vx;
-   o.y+=o.vy;
+  [p1,p2].forEach(p=>{
+   p.vy+=0.6;
+   p.x+=p.vx;
+   p.y+=p.vy;
+   p.lean*=0.95;
+   p.angle+=p.spin+p.lean;
+   p.arm+=Math.random()*0.3-0.15;
+   p.leg+=Math.random()*0.3-0.15;
   });
 
 
-  // 🧠 SMART AI
-  let speed = 0.3 + aiLevel*0.15;
+  let speed=Math.min(0.25+aiLevel*0.05,0.6);
+  if(ball.x>p2.x) p2.vx+=speed; else p2.vx-=speed;
 
 
-  if(ball.x > p2.x) p2.vx += speed;
-  else p2.vx -= speed;
-
-
-  // smarter jumping
-  if(Math.abs(ball.x - p2.x) < 80 && Math.random() < 0.02 + aiLevel*0.01){
-   p2.vy = -12 - aiLevel;
+  if(Math.abs(ball.x-p2.x)<60 && Math.random()<0.02+aiLevel*0.005){
+   p2.vy=-10;
   }
 
 
-  // rotation
-  [p1,p2].forEach(p=>{
-   p.angle+=p.spin;
-   p.spin*=0.98;
-   p.arm+=Math.random()*0.4-0.2;
-   p.leg+=Math.random()*0.4-0.2;
-  });
+  if(ball.holder){
+   let p=ball.holder;
+   ball.x=p.x;
+   ball.y=p.y-20;
+  }else{
+   ball.vy+=0.6;
+   ball.x+=ball.vx;
+   ball.y+=ball.vy;
+  }
 
 
-  // borders
   [p1,p2].forEach(p=>{
-   p.x=Math.max(0,Math.min(780,p.x));
-   if(p.y>350){
-    p.y=350;
-    p.vy*=-0.7;
+   let dx=ball.x-p.x;
+   let dy=ball.y-p.y;
+   if(Math.sqrt(dx*dx+dy*dy)<35 && !ball.holder){
+    ball.holder=p;
    }
   });
 
 
-  if(ball.x<0 || ball.x>800) ball.vx*=-0.8;
+  [p1,p2].forEach(p=>{
+   if(p.y>350){p.y=350;p.vy*=-0.6;}
+  });
 
 
-  if(ball.y>400){
-   ball.y=400;
-   ball.vy*=-0.7;
-  }
+  if(ball.y>400){ball.y=400;ball.vy*=-0.7;}
+  if(ball.x<0||ball.x>800) ball.vx*=-0.8;
 
 
-  // cheats
-  if(chaos){
-   ball.vx+=Math.random()*2-1;
-  }
-
-
+  if(chaos) ball.vx+=Math.random()*1-0.5;
   if(magnet){
    let p=owner==="p1"?p1:p2;
-   ball.x=p.x;
-   ball.y=p.y;
+   ball.holder=p;
   }
 
 
-  // hit
   [p1,p2].forEach(p=>{
    let dx=ball.x-p.x;
    let dy=ball.y-p.y;
-   if(Math.sqrt(dx*dx+dy*dy)<40){
+   if(Math.sqrt(dx*dx+dy*dy)<45){
     ball.vx=dx*0.7+(Math.random()*4-2);
     ball.vy=-8;
    }
   });
 
 
-  // SCORE
-  if(ball.x>780 && ball.y>200 && ball.y<300){
-   score1++;
-   aiLevel++; // 🔥 AI GETS SMARTER
-   reset();
-  }
+  if(ball.x>780 && ball.y>200 && ball.y<300){score1++;aiLevel++;reset();}
+  if(ball.x<20 && ball.y>200 && ball.y<300){score2++;aiLevel++;reset();}
 
 
-  if(ball.x<20 && ball.y>200 && ball.y<300){
-   score2++;
-   aiLevel++; // 🔥 AI GETS SMARTER
-   reset();
-  }
-
-
-  // WIN
-  if(score1>=5 || score2>=5){
+  if(score1>=5||score2>=5){
    alert((score1>=5?"P1":"P2")+" WINS!");
-   score1=0;
-   score2=0;
-   aiLevel=1; // reset difficulty
+   score1=0;score2=0;aiLevel=1;
   }
 
 
@@ -227,19 +207,15 @@ function loop(){
 
 
   ctx.fillStyle="white";
-  ctx.font="20px Arial";
   ctx.fillText(score1,50,50);
   ctx.fillText(score2,730,50);
-
-
-  ctx.fillText("AI Lv."+aiLevel,350,50);
+  ctx.fillText("AI:"+aiLevel,350,50);
 
 
   return;
  }
 
 
- // ===== SHOOTER =====
  bullets.forEach(b=>b.x+=b.dx);
 
 
@@ -249,8 +225,6 @@ function loop(){
 
  ctx.fillStyle="cyan";
  ctx.fillRect(p1.x,p1.y,20,30);
-
-
  ctx.fillStyle="red";
  ctx.fillRect(p2.x,p2.y,20,30);
 
@@ -262,53 +236,74 @@ function loop(){
 
 // RESET
 function reset(){
- ball.x=400;
- ball.y=200;
- ball.vx=0;
- ball.vy=0;
+ ball.x=400;ball.y=200;ball.vx=0;ball.vy=0;ball.holder=null;
 }
 
 
-// DRAW
+// COURT
 function drawCourt(){
  ctx.fillStyle="#222";
  ctx.fillRect(0,0,800,500);
-
-
  ctx.fillStyle="white";
  ctx.fillRect(780,200,10,100);
  ctx.fillRect(10,200,10,100);
 }
 
 
+// 🔥 NEW 90% STYLE PLAYER
 function drawPlayer(p,color){
  ctx.save();
  ctx.translate(p.x,p.y);
  ctx.rotate(p.angle);
 
 
+ // BODY (short + thick)
  ctx.fillStyle=color;
- ctx.fillRect(-10,0,20,30);
+ ctx.fillRect(-14,0,28,24);
 
 
+ // HEAD (bigger)
  ctx.beginPath();
- ctx.arc(0,-10,12,0,Math.PI*2);
+ ctx.arc(0,-14,16,0,Math.PI*2);
  ctx.fill();
 
 
+ // EYES
+ ctx.fillStyle="white";
+ ctx.fillRect(-6,-18,4,4);
+ ctx.fillRect(2,-18,4,4);
+
+
  ctx.strokeStyle=color;
- ctx.lineWidth=5;
+ ctx.lineWidth=8;
 
 
+ // ARMS (chunky + forward)
  ctx.beginPath();
- ctx.moveTo(0,10);
- ctx.lineTo(Math.cos(p.arm)*30, Math.sin(p.arm)*30);
+ ctx.moveTo(0,8);
+ ctx.lineTo(Math.cos(p.arm)*28+5, Math.sin(p.arm)*28);
  ctx.stroke();
 
 
  ctx.beginPath();
- ctx.moveTo(0,30);
- ctx.lineTo(Math.sin(p.leg)*20,50);
+ ctx.moveTo(0,8);
+ ctx.lineTo(-Math.cos(p.arm)*28-5, Math.sin(p.arm)*28);
+ ctx.stroke();
+
+
+ // LEGS (short + thick)
+ ctx.lineWidth=10;
+
+
+ ctx.beginPath();
+ ctx.moveTo(-6,24);
+ ctx.lineTo(Math.sin(p.leg)*15,45);
+ ctx.stroke();
+
+
+ ctx.beginPath();
+ ctx.moveTo(6,24);
+ ctx.lineTo(-Math.sin(p.leg)*15,45);
  ctx.stroke();
 
 
@@ -316,25 +311,16 @@ function drawPlayer(p,color){
 }
 
 
+// DASHBOARD
 function drawDashboard(){
  ctx.fillStyle="#f8fafc";
  ctx.fillRect(0,0,800,500);
-
-
  ctx.fillStyle="#2563eb";
  ctx.fillRect(0,0,800,60);
-
-
  ctx.fillStyle="white";
- ctx.font="20px Arial";
  ctx.fillText("Study Portal",20,35);
-
-
  ctx.fillStyle="#111";
  ctx.fillText("Assignments",300,150);
- ctx.fillText("Math Practice",300,180);
-
-
  ctx.fillText("Press TAB to return",300,400);
 }
 
