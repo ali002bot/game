@@ -1,750 +1,344 @@
-﻿m<!DOCTYPE html><html lang="en">
+﻿<!DOCTYPE html><html>
 <head>
 <meta charset="UTF-8">
-<title>IXL | Learn</title>
-<link rel="icon" href="https://www.ixl.com/favicon.ico"><style>
-body{margin:0;font-family:Arial;background:#0f172a;color:white;overflow:hidden}
+<title>Study Portal</title>
+<style>
+body{margin:0;font-family:Arial}
+canvas{display:block;margin:auto;background:#111}
+</style>
+</head>
+<body><canvas id="game" width="800" height="500"></canvas>
 
 
-#dashboard{text-align:center;padding:20px}
-.card{
- background:#1e293b;
- padding:15px;
- margin:10px;
- border-radius:10px;
- cursor:pointer;
+<script>
+const c=document.getElementById("game");
+const ctx=c.getContext("2d");
+
+
+let dashboard=false;
+let basketball=true;
+
+
+// ===== OWNER =====
+let owner=null, seq=[];
+let god=false, chaos=false, magnet=false;
+
+
+// ===== SCORE =====
+let score1=0, score2=0;
+
+
+// ===== AI =====
+let aiLevel=1;
+
+
+// ===== PLAYERS =====
+function make(x){
+ return {x:x,y:300,vx:0,vy:0,angle:0,spin:0,arm:0,leg:0};
 }
+let p1=make(150), p2=make(650);
+let ball={x:400,y:200,vx:0,vy:0};
 
 
-#gameCanvas{display:none;background:black;margin:auto}
+// ===== SHOOTER =====
+let bullets=[];
 
 
-#hud{position:absolute;top:10px;left:10px}
+// INPUT
+document.addEventListener("keydown",e=>{
+ seq.push(e.key);
 
 
-.bar{height:10px;background:#333;border-radius:5px;margin:5px 0}
-.fill{height:100%;background:lime;border-radius:5px}
-
-
-#fakeScreen{
- display:none;
- background:#f5f7fa;
- height:100vh;
- color:black;
-}
-</style></head>
-<body><div id="dashboard">
-<h1>IXL Dashboard</h1>
-<div class="card">Math Grade: 92%</div>
-<div class="card">Science Assignment: Complete</div>
-<div class="card">History Notes Updated</div>
-</div><div id="fakeScreen">
-<div style="background:#4CAF50;height:5px;"></div>
-<div style="background:white;padding:20px;border-radius:10px;max-width:800px;margin:auto;margin-top:40px;">
-<h3 style="color:#4CAF50;">GG.3 Line plots</h3>
-<p>Use the graph to answer.</p>
-<input placeholder="Answer..." style="padding:10px;">
-</div>
-</div><canvas id="gameCanvas" width="800" height="500"></canvas>
-
-
-<div id="hud">
-<div>❤️ Health</div>
-<div class="bar"><div id="healthBar" class="fill"></div></div><div>🔫 Ammo</div>
-<div class="bar"><div id="ammoBar" class="fill"></div></div><div id="scoreText">🏆 0</div>
-</div><script>
-const canvas=document.getElementById('gameCanvas');
-const ctx=canvas.getContext('2d');
-
-
-const dashboard=document.getElementById('dashboard');
-const fakeScreen=document.getElementById('fakeScreen');
-
-
-let gameActive=false,fakeMode=false;
-
-
-let player={x:100,y:200,w:30,h:30,health:100,ammo:10,maxAmmo:10};
-let bullets=[],enemies=[],keys={},score=0;
-let damageCooldown=0;
-
-
-// COLLISION FIX
-function isColliding(a,b){
- return a.x<b.x+b.w && a.x+a.w>b.x && a.y<b.y+b.h && a.y+a.h>b.y;
-}
-
-
-// TOGGLE IXL
-function toggleFake(){
- fakeMode=!fakeMode;
- dashboard.style.display=fakeMode?'none':'block';
- canvas.style.display='none';
- fakeScreen.style.display=fakeMode?'block':'none';
-}
-
-
-// CONTROLS
-window.addEventListener('keydown',e=>{
- keys[e.key]=true;
-
-
- if(e.shiftKey && e.key.toLowerCase()==='g'){
-  gameActive=true;
-  dashboard.style.display='none';
-  canvas.style.display='block';
+ if(e.key==="Tab"){
+  e.preventDefault();
+  dashboard=!dashboard;
  }
 
 
- if(e.key==='Escape'){
-  gameActive=false;
-  dashboard.style.display='block';
-  canvas.style.display='none';
+ if(e.key==="p") basketball=!basketball;
+
+
+ // OWNER
+ if(!owner){
+  if(JSON.stringify(seq.slice(-5))===JSON.stringify(["w","w","s","d","f"])) owner="p1";
+  if(JSON.stringify(seq.slice(-4))===JSON.stringify(["ArrowUp","ArrowUp","ArrowDown","ArrowRight"])) owner="p2";
  }
 
 
- if(e.altKey && e.key.toLowerCase()==='a'){
-  toggleFake();
- }
+ // CHEATS
+ if(owner){
+  let s=seq.join("");
+  if(s.includes("wsw")) god=!god;
+  if(s.includes("adad")) chaos=!chaos;
+  if(s.includes("sdsd")) magnet=!magnet;
 
 
- if(e.key==='r'){
-  player.ammo=player.maxAmmo;
- }
-});
-
-
-window.addEventListener('keyup',e=>keys[e.key]=false);
-
-
-// SHOOT
-window.addEventListener('click',()=>{
- if(gameActive && player.ammo>0){
-  bullets.push({x:player.x+30,y:player.y,w:10,h:5});
-  player.ammo--;
- }
-});
-
-
-// ENEMIES
-setInterval(()=>{
- enemies.push({x:800,y:Math.random()*500,w:30,h:30,speed:2});
-},1200);
-
-
-// UPDATE
-function update(){
- if(!gameActive) return;
-
-
- if(keys['w']) player.y-=4;
- if(keys['s']) player.y+=4;
- if(keys['a']) player.x-=4;
- if(keys['d']) player.x+=4;
-
-
- player.x=Math.max(0,Math.min(770,player.x));
- player.y=Math.max(0,Math.min(470,player.y));
-
-
- bullets.forEach(b=>b.x+=8);
-
-
- enemies.forEach(e=>{
-  let dx=player.x-e.x;
-  let dy=player.y-e.y;
-  let d=Math.sqrt(dx*dx+dy*dy);
-  e.x+=(dx/d)*e.speed;
-  e.y+=(dy/d)*e.speed;
- });
-
-
- bullets.forEach((b,bi)=>{
-  enemies.forEach((e,ei)=>{
-   if(isColliding(b,e)){
-    enemies.splice(ei,1);
-    bullets.splice(bi,1);
-    score+=10;
-   }
-  });
- });
-
-
- if(damageCooldown>0) damageCooldown--;
-
-
- enemies.forEach(e=>{
-  if(isColliding(player,e) && damageCooldown===0){
-   player.health-=5;
-   damageCooldown=20;
+  if(s.includes("wdwd")){
+   if(owner==="p1") score1++;
+   if(owner==="p2") score2++;
   }
- });
-
-
- // UI
- document.getElementById('healthBar').style.width=player.health+'%';
- document.getElementById('ammoBar').style.width=(player.ammo/player.maxAmmo*100)+'%';
- document.getElementById('scoreText').innerText='🏆 '+score;
-
-
- if(player.health<=0){
-  alert("Game Over! Score: "+score);
-  location.reload();
  }
-}
 
 
-// DRAW (UPGRADED VISUALS)
-function draw(){
- if(!gameActive) return;
+ // JUMP
+ if(basketball){
+  if(e.key==="w") jump(p1);
+  if(e.key==="ArrowUp") jump(p2);
+ }
 
 
- ctx.clearRect(0,0,800,500);
+ // SHOOTER
+ if(!basketball){
+  if(e.key==="f") bullets.push({x:p1.x,y:p1.y,dx:6});
+  if(e.key==="/") bullets.push({x:p2.x,y:p2.y,dx:-6});
+ }
+});
 
 
- // player glow
- ctx.fillStyle="#00e5ff";
- ctx.beginPath();
- ctx.arc(player.x+15,player.y+15,15,0,Math.PI*2);
- ctx.fill();
-
-
- // bullets
- ctx.fillStyle="yellow";
- bullets.forEach(b=>ctx.fillRect(b.x,b.y,10,5));
-
-
- // enemies glow
- ctx.fillStyle="#ff3b3b";
- enemies.forEach(e=>{
-  ctx.beginPath();
-  ctx.arc(e.x+15,e.y+15,15,0,Math.PI*2);
-  ctx.fill();
- });
+function jump(p){
+ p.vy = (god && owner==="p1") ? -22 : -12;
+ p.vx += Math.random()*14-7;
+ p.spin += Math.random()*2-1;
 }
 
 
 // LOOP
 function loop(){
- update();
- draw();
  requestAnimationFrame(loop);
-}
-loop();
-</script></body>
-</html>
-<!DOCTYPE html><html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>IXL | Learn</title>
-<link rel="icon" href="https://www.ixl.com/favicon.ico"><style>
-body{margin:0;font-family:Arial;background:#0f172a;color:white;overflow:hidden}
+ ctx.clearRect(0,0,800,500);
 
 
-#dashboard{text-align:center;padding:20px}
-.card{
- background:#1e293b;
- padding:15px;
- margin:10px;
- border-radius:10px;
- cursor:pointer;
-}
-
-
-#gameCanvas{
- display:none;
- background:black;
- margin:auto;
-}
-
-
-#hud{
- position:absolute;
- top:10px;
- left:10px;
- font-size:14px;
-}
-
-
-.bar{
- height:10px;
- background:#333;
- border-radius:5px;
- margin:5px 0;
-}
-.fill{
- height:100%;
- background:lime;
- border-radius:5px;
-}
-
-
-#fakeScreen{
- display:none;
- background:#f5f7fa;
- height:100vh;
- color:black;
-}
-</style></head>
-<body><div id="dashboard">
-<h1>IXL Dashboard</h1>
-<div class="card">Math Grade: 92%</div>
-<div class="card">Science Assignment: Complete</div>
-<div class="card">History Notes Updated</div>
-</div><div id="fakeScreen">
-<div style="background:#4CAF50;height:5px;"></div>
-<div style="background:white;padding:20px;border-radius:10px;max-width:800px;margin:auto;margin-top:40px;">
-<h3 style="color:#4CAF50;">GG.3 Line plots</h3>
-<p>Use the graph to answer.</p>
-<input placeholder="Answer..." style="padding:10px;">
-</div>
-</div><canvas id="gameCanvas" width="800" height="500"></canvas>
-
-
-<div id="hud">
-<div>❤️ Health</div>
-<div class="bar"><div id="healthBar" class="fill"></div></div><div>🔫 Ammo</div>
-<div class="bar"><div id="ammoBar" class="fill"></div></div><div id="scoreText">🏆 0</div>
-</div><script>
-const canvas = document.getElementById("gameCanvas");
-const ctx = canvas.getContext("2d");
-
-
-const dashboard = document.getElementById("dashboard");
-const fakeScreen = document.getElementById("fakeScreen");
-
-
-let gameActive = false;
-let fakeMode = false;
-
-
-let player = {x:100,y:200,w:30,h:30,health:100,ammo:10,maxAmmo:10};
-let bullets = [];
-let enemies = [];
-let keys = {};
-let score = 0;
-let damageCooldown = 0;
-
-
-// COLLISION
-function isColliding(a,b){
- return (
-  a.x < b.x + b.w &&
-  a.x + a.w > b.x &&
-  a.y < b.y + b.h &&
-  a.y + a.h > b.y
- );
-}
-
-
-// TOGGLE FAKE
-function toggleFake(){
- fakeMode = !fakeMode;
-
-
- if(fakeMode){
-  dashboard.style.display = "none";
-  canvas.style.display = "none";
-  fakeScreen.style.display = "block";
- } else {
-  dashboard.style.display = "block";
-  fakeScreen.style.display = "none";
- }
-}
-
-
-// CONTROLS
-window.addEventListener("keydown", e=>{
- keys[e.key] = true;
-
-
- if(e.shiftKey && e.key.toLowerCase()==="g"){
-  gameActive = true;
-  dashboard.style.display = "none";
-  canvas.style.display = "block";
+ if(dashboard){
+  drawDashboard();
+  return;
  }
 
 
- if(e.key === "Escape"){
-  gameActive = false;
-  dashboard.style.display = "block";
-  canvas.style.display = "none";
- }
+ // ===== BASKET =====
+ if(basketball){
 
 
- if(e.altKey && e.key.toLowerCase()==="a"){
-  toggleFake();
- }
+  [p1,p2,ball].forEach(o=>{
+   o.vy+=0.7;
+   o.x+=o.vx;
+   o.y+=o.vy;
+  });
 
 
- if(e.key === "r"){
-  player.ammo = player.maxAmmo;
- }
-});
+  // 🧠 SMART AI
+  let speed = 0.3 + aiLevel*0.15;
 
 
-window.addEventListener("keyup", e=>{
- keys[e.key] = false;
-});
+  if(ball.x > p2.x) p2.vx += speed;
+  else p2.vx -= speed;
 
 
-// SHOOT
-window.addEventListener("click", ()=>{
- if(gameActive && player.ammo > 0){
-  bullets.push({x:player.x+30,y:player.y,w:10,h:5});
-  player.ammo--;
- }
-});
+  // smarter jumping
+  if(Math.abs(ball.x - p2.x) < 80 && Math.random() < 0.02 + aiLevel*0.01){
+   p2.vy = -12 - aiLevel;
+  }
 
 
-// ENEMY SPAWN
-setInterval(()=>{
- enemies.push({
-  x:800,
-  y:Math.random()*470,
-  w:30,
-  h:30,
-  speed:2
- });
-},1200);
+  // rotation
+  [p1,p2].forEach(p=>{
+   p.angle+=p.spin;
+   p.spin*=0.98;
+   p.arm+=Math.random()*0.4-0.2;
+   p.leg+=Math.random()*0.4-0.2;
+  });
 
 
-// UPDATE
-function update(){
- if(!gameActive) return;
-
-
- if(keys["w"]) player.y -= 4;
- if(keys["s"]) player.y += 4;
- if(keys["a"]) player.x -= 4;
- if(keys["d"]) player.x += 4;
-
-
- player.x = Math.max(0, Math.min(770, player.x));
- player.y = Math.max(0, Math.min(470, player.y));
-
-
- bullets.forEach(b=>b.x += 8);
-
-
- enemies.forEach(e=>{
-  let dx = player.x - e.x;
-  let dy = player.y - e.y;
-  let dist = Math.sqrt(dx*dx + dy*dy) || 1;
-
-
-  e.x += (dx/dist)*e.speed;
-  e.y += (dy/dist)*e.speed;
- });
-
-
- // BULLET HIT
- bullets.forEach((b,bi)=>{
-  enemies.forEach((e,ei)=>{
-   if(isColliding(b,e)){
-    enemies.splice(ei,1);
-    bullets.splice(bi,1);
-    score += 10;
+  // borders
+  [p1,p2].forEach(p=>{
+   p.x=Math.max(0,Math.min(780,p.x));
+   if(p.y>350){
+    p.y=350;
+    p.vy*=-0.7;
    }
   });
- });
 
 
- // DAMAGE
- if(damageCooldown > 0) damageCooldown--;
+  if(ball.x<0 || ball.x>800) ball.vx*=-0.8;
 
 
- enemies.forEach(e=>{
-  if(isColliding(player,e) && damageCooldown === 0){
-   player.health -= 5;
-   damageCooldown = 15;
+  if(ball.y>400){
+   ball.y=400;
+   ball.vy*=-0.7;
   }
- });
 
 
- // UI
- document.getElementById("healthBar").style.width = player.health + "%";
- document.getElementById("ammoBar").style.width = (player.ammo/player.maxAmmo*100) + "%";
- document.getElementById("scoreText").innerText = "🏆 " + score;
+  // cheats
+  if(chaos){
+   ball.vx+=Math.random()*2-1;
+  }
 
 
- if(player.health <= 0){
-  alert("Game Over! Score: " + score);
-  location.reload();
+  if(magnet){
+   let p=owner==="p1"?p1:p2;
+   ball.x=p.x;
+   ball.y=p.y;
+  }
+
+
+  // hit
+  [p1,p2].forEach(p=>{
+   let dx=ball.x-p.x;
+   let dy=ball.y-p.y;
+   if(Math.sqrt(dx*dx+dy*dy)<40){
+    ball.vx=dx*0.7+(Math.random()*4-2);
+    ball.vy=-8;
+   }
+  });
+
+
+  // SCORE
+  if(ball.x>780 && ball.y>200 && ball.y<300){
+   score1++;
+   aiLevel++; // 🔥 AI GETS SMARTER
+   reset();
+  }
+
+
+  if(ball.x<20 && ball.y>200 && ball.y<300){
+   score2++;
+   aiLevel++; // 🔥 AI GETS SMARTER
+   reset();
+  }
+
+
+  // WIN
+  if(score1>=5 || score2>=5){
+   alert((score1>=5?"P1":"P2")+" WINS!");
+   score1=0;
+   score2=0;
+   aiLevel=1; // reset difficulty
+  }
+
+
+  drawCourt();
+  drawPlayer(p1,"cyan");
+  drawPlayer(p2,"red");
+
+
+  ctx.fillStyle="orange";
+  ctx.beginPath();
+  ctx.arc(ball.x,ball.y,10,0,Math.PI*2);
+  ctx.fill();
+
+
+  ctx.fillStyle="white";
+  ctx.font="20px Arial";
+  ctx.fillText(score1,50,50);
+  ctx.fillText(score2,730,50);
+
+
+  ctx.fillText("AI Lv."+aiLevel,350,50);
+
+
+  return;
  }
+
+
+ // ===== SHOOTER =====
+ bullets.forEach(b=>b.x+=b.dx);
+
+
+ ctx.fillStyle="#222";
+ ctx.fillRect(0,0,800,500);
+
+
+ ctx.fillStyle="cyan";
+ ctx.fillRect(p1.x,p1.y,20,30);
+
+
+ ctx.fillStyle="red";
+ ctx.fillRect(p2.x,p2.y,20,30);
+
+
+ ctx.fillStyle="yellow";
+ bullets.forEach(b=>ctx.fillRect(b.x,b.y,5,5));
+}
+
+
+// RESET
+function reset(){
+ ball.x=400;
+ ball.y=200;
+ ball.vx=0;
+ ball.vy=0;
 }
 
 
 // DRAW
-function draw(){
- if(!gameActive) return;
+function drawCourt(){
+ ctx.fillStyle="#222";
+ ctx.fillRect(0,0,800,500);
 
 
- ctx.clearRect(0,0,800,500);
+ ctx.fillStyle="white";
+ ctx.fillRect(780,200,10,100);
+ ctx.fillRect(10,200,10,100);
+}
 
 
- // PLAYER
- ctx.fillStyle = "#00e5ff";
+function drawPlayer(p,color){
+ ctx.save();
+ ctx.translate(p.x,p.y);
+ ctx.rotate(p.angle);
+
+
+ ctx.fillStyle=color;
+ ctx.fillRect(-10,0,20,30);
+
+
  ctx.beginPath();
- ctx.arc(player.x+15, player.y+15, 15, 0, Math.PI*2);
+ ctx.arc(0,-10,12,0,Math.PI*2);
  ctx.fill();
 
 
- // BULLETS
- ctx.fillStyle = "yellow";
- bullets.forEach(b=>ctx.fillRect(b.x,b.y,10,5));
+ ctx.strokeStyle=color;
+ ctx.lineWidth=5;
 
 
- // ENEMIES
- ctx.fillStyle = "#ff3b3b";
- enemies.forEach(e=>{
-  ctx.beginPath();
-  ctx.arc(e.x+15, e.y+15, 15, 0, Math.PI*2);
-  ctx.fill();
- });
-}
-
-
-// LOOP
-function loop(){
- update();
- draw();
- requestAnimationFrame(loop);
-}
-loop();
-</script></body>
-</html>m<!DOCTYPE html><html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>IXL | Learn</title>
-<link rel="icon" href="https://www.ixl.com/favicon.ico"><style>
-body{margin:0;font-family:Arial;background:#0f172a;color:white;overflow:hidden}
-
-
-#dashboard{text-align:center;padding:20px}
-.card{
- background:#1e293b;
- padding:15px;
- margin:10px;
- border-radius:10px;
- cursor:pointer;
-}
-
-
-#gameCanvas{display:none;background:black;margin:auto}
-
-
-#hud{position:absolute;top:10px;left:10px}
-
-
-.bar{height:10px;background:#333;border-radius:5px;margin:5px 0}
-.fill{height:100%;background:lime;border-radius:5px}
-
-
-#fakeScreen{
- display:none;
- background:#f5f7fa;
- height:100vh;
- color:black;
-}
-</style></head>
-<body><div id="dashboard">
-<h1>IXL Dashboard</h1>
-<div class="card">Math Grade: 92%</div>
-<div class="card">Science Assignment: Complete</div>
-<div class="card">History Notes Updated</div>
-</div><div id="fakeScreen">
-<div style="background:#4CAF50;height:5px;"></div>
-<div style="background:white;padding:20px;border-radius:10px;max-width:800px;margin:auto;margin-top:40px;">
-<h3 style="color:#4CAF50;">GG.3 Line plots</h3>
-<p>Use the graph to answer.</p>
-<input placeholder="Answer..." style="padding:10px;">
-</div>
-</div><canvas id="gameCanvas" width="800" height="500"></canvas>
-
-
-<div id="hud">
-<div>❤️ Health</div>
-<div class="bar"><div id="healthBar" class="fill"></div></div><div>🔫 Ammo</div>
-<div class="bar"><div id="ammoBar" class="fill"></div></div><div id="scoreText">🏆 0</div>
-</div><script>
-const canvas=document.getElementById('gameCanvas');
-const ctx=canvas.getContext('2d');
-
-
-const dashboard=document.getElementById('dashboard');
-const fakeScreen=document.getElementById('fakeScreen');
-
-
-let gameActive=false,fakeMode=false;
-
-
-let player={x:100,y:200,w:30,h:30,health:100,ammo:10,maxAmmo:10};
-let bullets=[],enemies=[],keys={},score=0;
-let damageCooldown=0;
-
-
-// COLLISION FIX
-function isColliding(a,b){
- return a.x<b.x+b.w && a.x+a.w>b.x && a.y<b.y+b.h && a.y+a.h>b.y;
-}
-
-
-// TOGGLE IXL
-function toggleFake(){
- fakeMode=!fakeMode;
- dashboard.style.display=fakeMode?'none':'block';
- canvas.style.display='none';
- fakeScreen.style.display=fakeMode?'block':'none';
-}
-
-
-// CONTROLS
-window.addEventListener('keydown',e=>{
- keys[e.key]=true;
-
-
- if(e.shiftKey && e.key.toLowerCase()==='g'){
-  gameActive=true;
-  dashboard.style.display='none';
-  canvas.style.display='block';
- }
-
-
- if(e.key==='Escape'){
-  gameActive=false;
-  dashboard.style.display='block';
-  canvas.style.display='none';
- }
-
-
- if(e.altKey && e.key.toLowerCase()==='a'){
-  toggleFake();
- }
-
-
- if(e.key==='r'){
-  player.ammo=player.maxAmmo;
- }
-});
-
-
-window.addEventListener('keyup',e=>keys[e.key]=false);
-
-
-// SHOOT
-window.addEventListener('click',()=>{
- if(gameActive && player.ammo>0){
-  bullets.push({x:player.x+30,y:player.y,w:10,h:5});
-  player.ammo--;
- }
-});
-
-
-// ENEMIES
-setInterval(()=>{
- enemies.push({x:800,y:Math.random()*500,w:30,h:30,speed:2});
-},1200);
-
-
-// UPDATE
-function update(){
- if(!gameActive) return;
-
-
- if(keys['w']) player.y-=4;
- if(keys['s']) player.y+=4;
- if(keys['a']) player.x-=4;
- if(keys['d']) player.x+=4;
-
-
- player.x=Math.max(0,Math.min(770,player.x));
- player.y=Math.max(0,Math.min(470,player.y));
-
-
- bullets.forEach(b=>b.x+=8);
-
-
- enemies.forEach(e=>{
-  let dx=player.x-e.x;
-  let dy=player.y-e.y;
-  let d=Math.sqrt(dx*dx+dy*dy);
-  e.x+=(dx/d)*e.speed;
-  e.y+=(dy/d)*e.speed;
- });
-
-
- bullets.forEach((b,bi)=>{
-  enemies.forEach((e,ei)=>{
-   if(isColliding(b,e)){
-    enemies.splice(ei,1);
-    bullets.splice(bi,1);
-    score+=10;
-   }
-  });
- });
-
-
- if(damageCooldown>0) damageCooldown--;
-
-
- enemies.forEach(e=>{
-  if(isColliding(player,e) && damageCooldown===0){
-   player.health-=5;
-   damageCooldown=20;
-  }
- });
-
-
- // UI
- document.getElementById('healthBar').style.width=player.health+'%';
- document.getElementById('ammoBar').style.width=(player.ammo/player.maxAmmo*100)+'%';
- document.getElementById('scoreText').innerText='🏆 '+score;
-
-
- if(player.health<=0){
-  alert("Game Over! Score: "+score);
-  location.reload();
- }
-}
-
-
-// DRAW (UPGRADED VISUALS)
-function draw(){
- if(!gameActive) return;
-
-
- ctx.clearRect(0,0,800,500);
-
-
- // player glow
- ctx.fillStyle="#00e5ff";
  ctx.beginPath();
- ctx.arc(player.x+15,player.y+15,15,0,Math.PI*2);
- ctx.fill();
+ ctx.moveTo(0,10);
+ ctx.lineTo(Math.cos(p.arm)*30, Math.sin(p.arm)*30);
+ ctx.stroke();
 
 
- // bullets
- ctx.fillStyle="yellow";
- bullets.forEach(b=>ctx.fillRect(b.x,b.y,10,5));
+ ctx.beginPath();
+ ctx.moveTo(0,30);
+ ctx.lineTo(Math.sin(p.leg)*20,50);
+ ctx.stroke();
 
 
- // enemies glow
- ctx.fillStyle="#ff3b3b";
- enemies.forEach(e=>{
-  ctx.beginPath();
-  ctx.arc(e.x+15,e.y+15,15,0,Math.PI*2);
-  ctx.fill();
- });
+ ctx.restore();
 }
 
 
-// LOOP
-function loop(){
- update();
- draw();
- requestAnimationFrame(loop);
+function drawDashboard(){
+ ctx.fillStyle="#f8fafc";
+ ctx.fillRect(0,0,800,500);
+
+
+ ctx.fillStyle="#2563eb";
+ ctx.fillRect(0,0,800,60);
+
+
+ ctx.fillStyle="white";
+ ctx.font="20px Arial";
+ ctx.fillText("Study Portal",20,35);
+
+
+ ctx.fillStyle="#111";
+ ctx.fillText("Assignments",300,150);
+ ctx.fillText("Math Practice",300,180);
+
+
+ ctx.fillText("Press TAB to return",300,400);
 }
+
+
 loop();
 </script></body>
 </html>
