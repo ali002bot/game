@@ -2,133 +2,106 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>My Drive - Google Drive</title>
-    <link rel="icon" type="image/png" href="https://ssl.gstatic.com/images/branding/product/1x/drive_2020q4_32dp.png">
+    <title>Assignments: 450190-1 12 Social Studies 7 - Embry</title>
+    <link rel="icon" type="image/png" href="https://img.icons8.com/color/48/dashed-circle.png">
     
-    <link rel="manifest" href="data:application/manifest+json,{'name':'My Drive','short_name':'Drive','start_url':'.','display':'standalone','background_color':'#ffffff','theme_color':'#ffffff'}">
+    <link rel="manifest" href="data:application/manifest+json,{'name':'My Drive','short_name':'Drive','icons':[{'src':'https://ssl.gstatic.com/images/branding/product/1x/drive_2020q4_32dp.png','sizes':'32x32','type':'image/png'}],'start_url':'.','display':'standalone','background_color':'#ffffff','theme_color':'#ffffff'}">
 
 
     <style>
-        body, html { margin: 0; padding: 0; width: 100vw; height: 100vh; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
+        body, html { margin: 0; padding: 0; width: 100vw; height: 100vh; overflow: hidden; font-family: 'Segoe UI', Arial, sans-serif; background: #fff; }
         
-        /* THE MAIN HUB INTERFACE */
-        #main-interface { width: 100%; height: 100%; background: #fff; display: flex; flex-direction: column; }
-        .drive-header { height: 64px; border-bottom: 1px solid #e0e0e0; display: flex; align-items: center; padding: 0 20px; }
-        .drive-logo { display: flex; align-items: center; gap: 12px; color: #5f6368; font-size: 18px; }
+        /* CANVAS INTERFACE (Alt + Z) */
+        #canvas-layer { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #fff; z-index: 9999; display: none; flex-direction: column; }
+        .chrome-ui { background: #dee1e6; height: 68px; border-bottom: 1px solid #bdc1c6; display: flex; flex-direction: column; }
+        .url-row { height: 40px; display: flex; align-items: center; padding: 0 12px; }
+        .omnibox { background: #fff; height: 28px; flex-grow: 1; border-radius: 14px; margin: 0 10px; padding: 0 15px; display: flex; align-items: center; font-size: 13px; color: #3c4043; }
+        .bookmarks { height: 28px; display: flex; align-items: center; padding: 0 15px; gap: 15px; font-size: 11px; color: #333; }
 
 
-        /* THE HIDDEN LAYERS */
-        .layer { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1000; }
-        #vault-layer { background: #111; color: white; padding: 40px; box-sizing: border-box; flex-direction: column; }
-        #game-view { background: #000; }
+        .canvas-body { display: flex; height: calc(100vh - 68px); }
+        .sidebar { width: 84px; background: #00356b; display: flex; flex-direction: column; align-items: center; padding-top: 15px; }
+        .gator-box { width: 55px; height: 40px; border: 1px solid #f37021; border-radius: 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .nav-col { width: 160px; border-right: 1px solid #eee; padding: 20px 10px; font-size: 14px; color: #0081bd; }
+        .active-nav { border-left: 3px solid #000; padding-left: 8px; color: #000; font-weight: bold; }
+
+
+        /* THE HUB (Alt + Space) */
+        #hub-layer { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #000; z-index: 9000; display: flex; flex-direction: column; padding: 40px; box-sizing: border-box; color: #fff; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 15px; }
+        .tile { background: #1a1a1a; border: 1px solid #333; padding: 25px; text-align: center; border-radius: 8px; font-weight: bold; cursor: pointer; }
         
-        /* THE "EMBRY SOCIAL STUDIES" FREEZE */
-        #freeze-layer { background: #fff; z-index: 9999; }
-        
-        iframe { width: 100%; height: 100%; border: none; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 15px; margin-top: 20px; }
-        .tile { background: #222; border: 1px solid #333; padding: 20px; text-align: center; border-radius: 8px; cursor: pointer; font-weight: bold; }
-        .tile:hover { background: #34a853; }
+        iframe { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; border: none; z-index: 8000; display: none; background: #000; }
     </style>
 </head>
 <body onclick="if(!document.fullscreenElement)document.documentElement.requestFullscreen()">
 
 
-    <div id="main-interface">
-        <div class="drive-header">
-            <div class="drive-logo">
-                <img src="https://ssl.gstatic.com/images/branding/product/1x/drive_2020q4_32dp.png" height="24">
-                <span>Drive</span>
+<div id="canvas-layer">
+    <div class="chrome-ui">
+        <div class="url-row">
+            <span style="color:#5f6368; letter-spacing:5px;">←→↻</span>
+            <div class="omnibox">🔒 boone.instructure.com/courses/133119/assignments</div>
+            <span style="background:#d93025; color:white; border-radius:4px; padding:2px 4px; font-size:10px; font-weight:bold; margin-left:auto;">ABP</span>
+        </div>
+        <div class="bookmarks">📁 BCS Bookmarks &nbsp;&nbsp; Dashboard &nbsp;&nbsp; Pear Assessment &nbsp;&nbsp; 7th Grade FLEX</div>
+    </div>
+    <div class="canvas-body">
+        <div class="sidebar">
+            <div class="gator-box"><div style="color:#f37021; font-weight:bold; font-size:10px;">GMS</div></div>
+            <div style="width:30px; height:30px; background:rgba(255,255,255,0.2); border-radius:50%; margin-top:25px;"></div>
+        </div>
+        <div class="nav-col">
+            <div style="margin-bottom:15px;" class="active-nav">Assignments</div>
+            <div style="margin-bottom:15px;">Grades <span style="background:#f37021; color:white; border-radius:10px; padding:0 5px; font-size:10px;">6</span></div>
+        </div>
+        <div style="flex-grow:1; padding:30px;">
+            <h2 style="font-weight:normal; border-bottom:1px solid #ddd; padding-bottom:10px;">Social Studies 7 - Embry</h2>
+            <div style="padding:20px 0; border-bottom:1px solid #eee;">
+                <b style="color:#0081bd;">Reformation Knowledge Check #1</b><br>
+                <span style="font-size:12px; color:#666;">Due Mar 27 | 13/37 pts</span>
             </div>
         </div>
-        <div style="padding: 40px;">
-            <h2 style="font-weight:normal;">Quick Access</h2>
-            <p style="color: #666;">No recent files to show. Use 'Alt + Space' to begin.</p>
-        </div>
     </div>
+</div>
 
 
-    <div id="vault-layer" class="layer">
-        <h1>GMS_HOST_V1</h1>
-        <div class="grid" id="game-grid">
-            </div>
-    </div>
+<div id="hub-layer">
+    <h1 style="color:#34a853;">GMS_STUDY_HUB_V1</h1>
+    <div class="grid" id="grid"></div>
+</div>
 
 
-    <div id="game-view" class="layer">
-        <iframe id="game-frame"></iframe>
-    </div>
-
-
-    <div id="freeze-layer" class="layer">
-        <div style="padding: 20px; font-family: Arial;">
-            <h2 style="border-bottom: 1px solid #ddd; padding-bottom: 10px;">450190-1 12 Social Studies 7 - Embry > Assignments</h2>
-            <p style="color: #0081bd; font-weight: bold;">Reformation Knowledge Check #1</p>
-            <p style="font-size: 12px; color: #666;">Due Mar 27 at 11:59pm | 13/37 pts</p>
-            <hr>
-            <p style="color: #0081bd; font-weight: bold;">Renaissance Knowledge Check #2</p>
-            <p style="font-size: 12px; color: #666;">Due Mar 10 at 11:59pm | -/39 pts</p>
-        </div>
-    </div>
+<iframe id="game-frame"></iframe>
 
 
 <script>
-    const layers = {
-        vault: document.getElementById('vault-layer'),
-        game: document.getElementById('game-view'),
-        freeze: document.getElementById('freeze-layer')
-    };
+    const hub = document.getElementById('hub-layer');
+    const freeze = document.getElementById('canvas-layer');
     const frame = document.getElementById('game-frame');
+    const grid = document.getElementById('grid');
 
 
-    const games = [
-        {name: "Roblox", url: "https://now.gg/play/roblox-corporation/5349/roblox"},
-        {name: "911 Games", url: "https://911games.io"},
-        {name: "BeamNG", url: "https://ubg76.github.io/beamng-drive/"},
-        {name: "Basket Random", url: "https://basketrandom.com"}
-    ];
+    const games = ["Roblox", "Basket Random", "BeamNG", "Retro Bowl", "Minecraft", "Slope", "911 Games"];
 
 
-    function init() {
-        const grid = document.getElementById('game-grid');
-        games.forEach(g => {
-            let d = document.createElement('div'); d.className = 'tile'; d.innerText = g.name;
-            d.onclick = () => { 
-                hideAll(); 
-                layers.game.style.display = 'block'; 
-                frame.src = g.url; 
-            };
-            grid.appendChild(d);
-        });
-    }
-
-
-    function hideAll() { Object.values(layers).forEach(l => l.style.display = 'none'); }
+    games.forEach(g => {
+        let d = document.createElement('div'); d.className = 'tile'; d.innerText = g;
+        d.onclick = () => { hub.style.display='none'; frame.style.display='block'; frame.src = (g === "Roblox") ? "https://now.gg/play/roblox-corporation/5349/roblox" : "https://911games.io/search/" + g; };
+        grid.appendChild(d);
+    });
 
 
     window.addEventListener('keydown', (e) => {
         const key = e.key.toLowerCase();
-        
-        if (e.altKey && e.code === "Space") {
-            e.preventDefault();
-            hideAll();
-            layers.vault.style.display = 'flex';
-        }
-
-
+        if (e.altKey && e.code === "Space") { hub.style.display = (hub.style.display === "flex") ? "none" : "flex"; if(hub.style.display === "flex") frame.style.display = "none"; }
         if (e.altKey && key === 'z') {
-            e.preventDefault();
-            hideAll();
-            frame.src = ""; // Nuke sound
-            layers.freeze.style.display = 'block';
+            const frozen = freeze.style.display === "flex";
+            freeze.style.display = frozen ? "none" : "flex";
+            if(!frozen) frame.src = "about:blank";
         }
-
-
         if (e.altKey && key === 'q') window.location.href = "https://boone.instructure.com/login/canvas";
     });
-
-
-    init();
 </script>
 </body>
 </html>
